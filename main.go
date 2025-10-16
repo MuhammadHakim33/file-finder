@@ -1,25 +1,33 @@
 package main
 
 import (
+	"io"
 	"io/fs"
 	"log"
 	"os"
 	"path/filepath"
 	"strings"
+	"time"
 
 	"github.com/dlclark/regexp2"
 )
 
-const ROOT string = `C:\Users\Hakim\Documents\test`
+const ROOT string = `C:\Users\Hakim\Documents`
 const PATTERN string = `^BEFORE`
 
 var files []string
 
 func main() {
 
+	start := time.Now()
+	log.Println("Start")
+
 	if err := filepath.WalkDir(ROOT, walkFunc); err != nil {
 		log.Println(err)
 	}
+
+	end := time.Since(start)
+	log.Println("Time Execution : ", end)
 
 	for _, file := range files {
 		log.Println(file)
@@ -28,8 +36,7 @@ func main() {
 
 func walkFunc(path string, d fs.DirEntry, err error) error {
 	if err != nil {
-		log.Printf("error visit directory : %v", err)
-		return nil
+		return err
 	}
 
 	if d.IsDir() && isHiddenDir(d.Name()) {
@@ -52,13 +59,22 @@ func isHiddenDir(dirname string) bool {
 }
 
 func isEmptyDir(path string) bool {
-	entries, err := os.ReadDir(path)
+	dir, err := os.Open(path)
 	if err != nil {
-		log.Printf("error visit directory : %v", err)
+		log.Printf("error opening directory: %v", err)
+		return true
+	}
+	defer dir.Close()
+
+	_, err = dir.Readdirnames(1)
+
+	// if dir is empty, Readdirnames return this error [io.EOF]
+	if err == io.EOF {
 		return true
 	}
 
-	if len(entries) == 0 {
+	if err != nil {
+		log.Printf("error reading directory: %v", err.Error())
 		return true
 	}
 
