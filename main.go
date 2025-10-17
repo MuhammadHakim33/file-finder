@@ -1,40 +1,54 @@
 package main
 
 import (
-	"io"
 	"io/fs"
 	"log"
-	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
-	"time"
-
-	"github.com/dlclark/regexp2"
 )
 
-const ROOT string = `C:\Users\Hakim\Documents`
-const PATTERN string = `^BEFORE`
+type Finder struct {
+	root    string
+	pattern string
+	regex   *regexp.Regexp
+	results []string
+}
 
-var files []string
+func NewFinder(root string, pattern string) (*Finder, error) {
+	re, err := regexp.Compile("(?i)" + pattern)
+	if err != nil {
+		return nil, err
+	}
+
+	return &Finder{
+		root:    root,
+		pattern: pattern,
+		regex:   re,
+	}, nil
+}
 
 func main() {
 
-	start := time.Now()
 	log.Println("Start")
 
-	if err := filepath.WalkDir(ROOT, walkFunc); err != nil {
+	finder, err := NewFinder(`C:\Users\Hakim\Documents`, `^before`)
+	if err != nil {
 		log.Println(err)
+		return
 	}
 
-	end := time.Since(start)
-	log.Println("Time Execution : ", end)
+	if err := filepath.WalkDir(finder.root, finder.walkFunc); err != nil {
+		log.Println(err)
+		return
+	}
 
-	for _, file := range files {
+	for _, file := range finder.results {
 		log.Println(file)
 	}
 }
 
-func walkFunc(path string, d fs.DirEntry, err error) error {
+func (f *Finder) walkFunc(path string, d fs.DirEntry, err error) error {
 	if err != nil {
 		return err
 	}
@@ -43,12 +57,8 @@ func walkFunc(path string, d fs.DirEntry, err error) error {
 		return filepath.SkipDir
 	}
 
-	if d.IsDir() && isEmptyDir(path) {
-		return filepath.SkipDir
-	}
-
-	if isMatchPattern(PATTERN, d.Name()) {
-		files = append(files, path)
+	if f.regex.MatchString(d.Name()) {
+		f.results = append(f.results, path)
 	}
 
 	return nil
@@ -56,41 +66,4 @@ func walkFunc(path string, d fs.DirEntry, err error) error {
 
 func isHiddenDir(dirname string) bool {
 	return strings.HasPrefix(dirname, ".")
-}
-
-func isEmptyDir(path string) bool {
-	dir, err := os.Open(path)
-	if err != nil {
-		log.Printf("error opening directory: %v", err)
-		return true
-	}
-	defer dir.Close()
-
-	_, err = dir.Readdirnames(1)
-
-	// if dir is empty, Readdirnames return this error [io.EOF]
-	if err == io.EOF {
-		return true
-	}
-
-	if err != nil {
-		log.Printf("error reading directory: %v", err.Error())
-		return true
-	}
-
-	return false
-}
-
-func isMatchPattern(pattern string, name string) bool {
-	reg, err := regexp2.Compile(pattern, regexp2.IgnoreCase)
-	if err != nil {
-		log.Printf("error match pattern regex : %v", err)
-		return false
-	}
-
-	if isMatch, _ := reg.MatchString(name); isMatch {
-		return true
-	}
-
-	return false
 }
