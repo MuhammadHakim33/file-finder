@@ -1,18 +1,67 @@
 package main
 
 import (
+	"flag"
+	"fmt"
 	"io/fs"
 	"log"
+	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync"
 )
 
+const MAXFILE int = 100
+
 type Finder struct {
-	root    string
-	pattern string
-	regex   *regexp.Regexp
-	results []string
+	root        string
+	pattern     string
+	regex       *regexp.Regexp
+	results     []string
+	totalResult int
+	mu          sync.Mutex
+	wg          sync.WaitGroup
+}
+
+func main() {
+
+	log.Println("Start")
+
+	ex, err := os.Executable()
+	if err != nil {
+		panic(err)
+	}
+
+	currentDir := filepath.Dir(ex)
+
+	flagDir := flag.String("dir", currentDir, "Directory To Search")
+	flagSearch := flag.String("s", ``, "Search keyword")
+
+	flag.Parse()
+
+	finder, err := NewFinder(*flagDir, *flagSearch)
+	if err != nil {
+		log.Println(err)
+		return
+	}
+
+	if err := filepath.WalkDir(finder.root, finder.walkFunc); err != nil {
+		log.Println(err)
+		return
+	}
+
+	finder.wg.Wait()
+
+	for _, file := range finder.results {
+		fmt.Println("+ ", file)
+	}
+
+	if finder.totalResult >= MAXFILE {
+		log.Printf("Found %d matching files. Try a more specific keyword.", finder.totalResult)
+	} else {
+		log.Printf("Found %d matching files.", finder.totalResult)
+	}
 }
 
 func NewFinder(root string, pattern string) (*Finder, error) {
@@ -28,26 +77,6 @@ func NewFinder(root string, pattern string) (*Finder, error) {
 	}, nil
 }
 
-func main() {
-
-	log.Println("Start")
-
-	finder, err := NewFinder(`C:\Users\Hakim\Documents`, `^before`)
-	if err != nil {
-		log.Println(err)
-		return
-	}
-
-	if err := filepath.WalkDir(finder.root, finder.walkFunc); err != nil {
-		log.Println(err)
-		return
-	}
-
-	for _, file := range finder.results {
-		log.Println(file)
-	}
-}
-
 func (f *Finder) walkFunc(path string, d fs.DirEntry, err error) error {
 	if err != nil {
 		return err
@@ -57,9 +86,20 @@ func (f *Finder) walkFunc(path string, d fs.DirEntry, err error) error {
 		return filepath.SkipDir
 	}
 
-	if f.regex.MatchString(d.Name()) {
-		f.results = append(f.results, path)
-	}
+	f.wg.Add(1)
+	go func(name, path string) {
+		defer f.wg.Done()
+
+		if f.regex.MatchString(d.Name()) {
+			f.mu.Lock()
+			defer f.mu.Unlock()
+
+			f.totalResult++
+			if len(f.results) <= MAXFILE {
+				f.results = append(f.results, path)
+			}
+		}
+	}(d.Name(), path)
 
 	return nil
 }
