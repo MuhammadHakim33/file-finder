@@ -1,109 +1,50 @@
 package main
 
 import (
+	"file-finder/internal"
 	"flag"
 	"fmt"
-	"io/fs"
 	"log"
-	"os"
-	"path/filepath"
-	"regexp"
-	"strings"
-	"sync"
 )
 
-const MAXFILE int = 100
-
-type Finder struct {
-	root        string
-	pattern     string
-	regex       *regexp.Regexp
-	results     []string
-	totalResult int
-	mu          sync.Mutex
-	wg          sync.WaitGroup
-}
+const MAXOUTPUTFILE int = 100
 
 func main() {
+	// flags
+	dir := flag.String("dir", "", "Directory to search")
+	keyword := flag.String("s", "", "Search keyword")
+	flag.Parse()
 
 	log.Println("Start")
 
-	ex, err := os.Executable()
+	// initialize finder
+	f, err := internal.New(*keyword, *dir)
 	if err != nil {
-		panic(err)
-	}
-
-	currentDir := filepath.Dir(ex)
-
-	flagDir := flag.String("dir", currentDir, "Directory To Search")
-	flagSearch := flag.String("s", ``, "Search keyword")
-
-	flag.Parse()
-
-	finder, err := NewFinder(*flagDir, *flagSearch)
-	if err != nil {
-		log.Println(err)
+		log.Println("Initialize failed:", err)
 		return
 	}
 
-	if err := filepath.WalkDir(finder.root, finder.walkFunc); err != nil {
-		log.Println(err)
+	// start finder
+	result, err := f.Find()
+	if err != nil {
+		log.Println("Finder failed:", err)
 		return
 	}
 
-	finder.wg.Wait()
-
-	for _, file := range finder.results {
-		fmt.Println("+ ", file)
-	}
-
-	if finder.totalResult >= MAXFILE {
-		log.Printf("Found %d matching files. Try a more specific keyword.", finder.totalResult)
-	} else {
-		log.Printf("Found %d matching files.", finder.totalResult)
-	}
-}
-
-func NewFinder(root string, pattern string) (*Finder, error) {
-	re, err := regexp.Compile("(?i)" + pattern)
-	if err != nil {
-		return nil, err
-	}
-
-	return &Finder{
-		root:    root,
-		pattern: pattern,
-		regex:   re,
-	}, nil
-}
-
-func (f *Finder) walkFunc(path string, d fs.DirEntry, err error) error {
-	if err != nil {
-		return err
-	}
-
-	if d.IsDir() && isHiddenDir(d.Name()) {
-		return filepath.SkipDir
-	}
-
-	f.wg.Add(1)
-	go func(name, path string) {
-		defer f.wg.Done()
-
-		if f.regex.MatchString(d.Name()) {
-			f.mu.Lock()
-			defer f.mu.Unlock()
-
-			f.totalResult++
-			if len(f.results) <= MAXFILE {
-				f.results = append(f.results, path)
-			}
+	// show result
+	for i, p := range result {
+		if i > MAXOUTPUTFILE {
+			break
 		}
-	}(d.Name(), path)
 
-	return nil
-}
+		fmt.Println("+ ", *p)
+	}
 
-func isHiddenDir(dirname string) bool {
-	return strings.HasPrefix(dirname, ".")
+	// response if the result exceeds the max
+	exceed_response := ""
+	if len(result) > MAXOUTPUTFILE {
+		exceed_response = "Try a more specific keyword."
+	}
+
+	log.Printf("Found %d matching files. %s", len(result), exceed_response)
 }
