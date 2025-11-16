@@ -14,9 +14,18 @@ type Finder struct {
 	dir string
 }
 
-func New(keyword, dir string) (*Finder, error) {
+func New(keyword, dir, ext string) (*Finder, error) {
+	expr := "(?i)" + regexp.QuoteMeta(keyword)
+
+	if ext != "" {
+		if !strings.HasPrefix(ext, ".") {
+			ext = "." + ext
+		}
+		expr += regexp.QuoteMeta(ext) + "$"
+	}
+
 	// init regex
-	rgx, err := regexp.Compile("(?i)" + keyword)
+	rgx, err := regexp.Compile(expr)
 	if err != nil {
 		return nil, err
 	}

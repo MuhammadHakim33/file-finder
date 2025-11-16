@@ -11,14 +11,15 @@ const MAXOUTPUTFILE int = 100
 
 func main() {
 	// flags
-	dir := flag.String("dir", "", "Directory to search")
-	keyword := flag.String("s", "", "Search keyword")
+	dir := flag.String("d", "", "Path to the directory to scan")
+	keyword := flag.String("s", "", "Keyword to search for within files")
+	ext := flag.String("e", "", "Filter files by extension, e.g., txt, png, pdf")
 	flag.Parse()
 
 	log.Println("Start")
 
 	// initialize finder
-	f, err := internal.New(*keyword, *dir)
+	f, err := internal.New(*keyword, *dir, *ext)
 	if err != nil {
 		log.Println("Initialize failed:", err)
 		return
