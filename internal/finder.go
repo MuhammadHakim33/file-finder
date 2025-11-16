@@ -15,7 +15,7 @@ type Finder struct {
 }
 
 func New(keyword, dir, ext string) (*Finder, error) {
-	expr := "(?i)" + regexp.QuoteMeta(keyword)
+	expr := "(?i)" + regexp.QuoteMeta(keyword) + ".*"
 
 	if ext != "" {
 		if !strings.HasPrefix(ext, ".") {
