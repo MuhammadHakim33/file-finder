@@ -1,10 +1,11 @@
 package main
 
 import (
-	"file-finder/internal"
 	"flag"
 	"fmt"
 	"log"
+
+	"github.com/MuhammadHakim33/file-finder/internal"
 )
 
 const MAXOUTPUTFILE int = 100
