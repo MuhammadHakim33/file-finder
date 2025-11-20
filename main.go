@@ -5,7 +5,7 @@ import (
 	"fmt"
 	"log"
 
-	"github.com/MuhammadHakim33/file-finder/internal"
+	"github.com/muhammadhakim33/file-finder/internal"
 )
 
 const MAXOUTPUTFILE int = 100
