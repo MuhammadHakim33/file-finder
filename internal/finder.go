@@ -2,11 +2,13 @@ package internal
 
 import (
 	"errors"
+	"fmt"
 	"io/fs"
 	"os"
 	"path/filepath"
 	"regexp"
 	"strings"
+	"syscall"
 )
 
 type Finder struct {
@@ -53,9 +55,12 @@ func (f *Finder) Find() ([]*string, error) {
 	var result []*string
 
 	// access all dir & file sequential with walkdir func
-	err := filepath.WalkDir(f.dir, func(path string, d fs.DirEntry, err error) error {
+	err := filepath.WalkDir(`C:\Users\Hakim`, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
-			return errors.New("directory not found")
+			if errors.Is(err, syscall.ERROR_ACCESS_DENIED) {
+				return filepath.SkipDir
+			}
+			return fmt.Errorf("directory not found : %s", err)
 		}
 
 		if d.IsDir() && isHiddenDir(d.Name()) {
