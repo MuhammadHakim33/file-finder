@@ -9,7 +9,7 @@ Pastikan Go sudah terpasang di sistem Anda.
 Untuk menginstal File Finder, jalankan perintah berikut:
 
 ```bash
-go install github.com/MuhammadHakim33/file-finder@vlatest
+go install github.com/MuhammadHakim33/file-finder@latest
 ```
 
 ## 🚀 Cara Menggunakan
