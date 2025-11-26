@@ -40,7 +40,7 @@ func New(keyword, dir, ext string) (*Finder, error) {
 
 	// if dir is empty, set value to current directory
 	if dir == "" {
-		ex, err := os.Executable()
+		ex, err := os.Getwd()
 		if err != nil {
 			return nil, err
 		}
@@ -55,7 +55,7 @@ func (f *Finder) Find() ([]*string, error) {
 	var result []*string
 
 	// access all dir & file sequential with walkdir func
-	err := filepath.WalkDir(`C:\Users\Hakim`, func(path string, d fs.DirEntry, err error) error {
+	err := filepath.WalkDir(f.dir, func(path string, d fs.DirEntry, err error) error {
 		if err != nil {
 			if errors.Is(err, syscall.ERROR_ACCESS_DENIED) {
 				return filepath.SkipDir
